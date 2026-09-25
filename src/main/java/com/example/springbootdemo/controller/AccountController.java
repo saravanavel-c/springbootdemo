@@ -20,6 +20,7 @@ public class AccountController {
         this.accountService = accountService;
     }
 
+    // CREATE
     @PostMapping
     public ResponseEntity<AccountResponse> createAccount(
             @Valid @RequestBody AccountRequest request) {
@@ -29,6 +30,7 @@ public class AccountController {
                 .body(accountService.createAccount(request));
     }
 
+    // READ ALL
     @GetMapping
     public ResponseEntity<List<AccountResponse>> getAllAccounts() {
 
@@ -37,6 +39,7 @@ public class AccountController {
         );
     }
 
+    // READ ONE
     @GetMapping("/{accountId}")
     public ResponseEntity<AccountResponse> getAccountById(
             @PathVariable Long accountId) {
@@ -44,5 +47,26 @@ public class AccountController {
         return ResponseEntity.ok(
                 accountService.getAccountById(accountId)
         );
+    }
+
+    // UPDATE
+    @PutMapping("/{accountId}")
+    public ResponseEntity<AccountResponse> updateAccount(
+            @PathVariable Long accountId,
+            @Valid @RequestBody AccountRequest request) {
+
+        return ResponseEntity.ok(
+                accountService.updateAccount(accountId, request)
+        );
+    }
+
+    // DELETE
+    @DeleteMapping("/{accountId}")
+    public ResponseEntity<Void> deleteAccount(
+            @PathVariable Long accountId) {
+
+        accountService.deleteAccount(accountId);
+
+        return ResponseEntity.noContent().build();
     }
 }

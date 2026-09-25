@@ -26,6 +26,7 @@ public class AccountService {
         this.customerRepository = customerRepository;
     }
 
+    // CREATE
     public AccountResponse createAccount(AccountRequest request) {
 
         Customer customer = customerRepository
@@ -47,6 +48,7 @@ public class AccountService {
         return convertToResponse(savedAccount);
     }
 
+    // READ ALL
     public List<AccountResponse> getAllAccounts() {
 
         return accountRepository.findAll()
@@ -55,6 +57,7 @@ public class AccountService {
                 .collect(Collectors.toList());
     }
 
+    // READ ONE
     public AccountResponse getAccountById(Long id) {
 
         Account account = accountRepository.findById(id)
@@ -66,6 +69,47 @@ public class AccountService {
         return convertToResponse(account);
     }
 
+    // UPDATE
+    public AccountResponse updateAccount(
+            Long id,
+            AccountRequest request) {
+
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Account not found with id " + id
+                        ));
+
+        Customer customer = customerRepository
+                .findById(request.getCustomerId())
+                .orElseThrow(() ->
+                        new CustomerNotFoundException(
+                                request.getCustomerId()
+                        ));
+
+        account.setAccountNumber(request.getAccountNumber());
+        account.setAccountType(request.getAccountType());
+        account.setBalance(request.getBalance());
+        account.setCustomer(customer);
+
+        Account updatedAccount = accountRepository.save(account);
+
+        return convertToResponse(updatedAccount);
+    }
+
+    // DELETE
+    public void deleteAccount(Long id) {
+
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Account not found with id " + id
+                        ));
+
+        accountRepository.delete(account);
+    }
+
+    // ENTITY → RESPONSE DTO
     private AccountResponse convertToResponse(Account account) {
 
         return new AccountResponse(
