@@ -32,7 +32,12 @@ public class AccountController {
 
     // READ ALL
     @GetMapping
-    public ResponseEntity<List<AccountResponse>> getAllAccounts() {
+    public ResponseEntity<List<AccountResponse>> getAllAccounts(
+            @RequestParam(required = false) Long customerId) {
+
+        if (customerId != null) {
+            return ResponseEntity.ok(accountService.getAccountsByCustomerId(customerId));
+        }
 
         return ResponseEntity.ok(
                 accountService.getAllAccounts()

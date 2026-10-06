@@ -31,33 +31,142 @@ public class SecurityConfig {
 
             .authorizeHttpRequests(auth -> auth
 
-                // GET accounts - any authenticated user
+                // ==========================================
+                // PUBLIC ENDPOINTS
+                // ==========================================
+
+                .requestMatchers(HttpMethod.OPTIONS, "/**")
+                .permitAll()
+
+                .requestMatchers("/health", "/api/info")
+                .permitAll()
+
+
+                // ==========================================
+                // CUSTOMERS
+                // ==========================================
+
+                // All authenticated users can view customers
+                .requestMatchers(HttpMethod.GET, "/api/customers")
+                .authenticated()
+
+                .requestMatchers(HttpMethod.GET, "/api/customers/**")
+                .authenticated()
+
+                // Only ADMIN can create customers
+                .requestMatchers(HttpMethod.POST, "/api/customers")
+                .hasRole("ADMIN")
+
+                // Only ADMIN can update customers
+                .requestMatchers(HttpMethod.PUT, "/api/customers/**")
+                .hasRole("ADMIN")
+
+                // Only ADMIN can delete customers
+                .requestMatchers(HttpMethod.DELETE, "/api/customers/**")
+                .hasRole("ADMIN")
+
+
+                // ==========================================
+                // ACCOUNTS
+                // ==========================================
+
+                // All authenticated users can view accounts
                 .requestMatchers(HttpMethod.GET, "/api/accounts")
                 .authenticated()
 
                 .requestMatchers(HttpMethod.GET, "/api/accounts/**")
                 .authenticated()
 
-                // Create account - ADMIN only
+                // Only ADMIN can create accounts
                 .requestMatchers(HttpMethod.POST, "/api/accounts")
                 .hasRole("ADMIN")
 
-                // Create transaction - MAKER only
+                // Only ADMIN can update accounts
+                .requestMatchers(HttpMethod.PUT, "/api/accounts/**")
+                .hasRole("ADMIN")
+
+                // Only ADMIN can delete accounts
+                .requestMatchers(HttpMethod.DELETE, "/api/accounts/**")
+                .hasRole("ADMIN")
+
+
+                // ==========================================
+                // TRANSACTIONS
+                // ==========================================
+
+                // All authenticated users can view transactions
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/accounts/*/transactions"
+                )
+                .authenticated()
+
+                // MAKER can create transactions
                 .requestMatchers(
                     HttpMethod.POST,
                     "/api/accounts/*/transactions"
                 )
-                .hasRole("MAKER")
+                .hasAnyRole("MAKER", "ADMIN")
 
-                // Delete beneficiary - ADMIN or CHECKER
+
+                // ==========================================
+                // BENEFICIARIES
+                // ==========================================
+
+                // All authenticated users can view beneficiaries
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/beneficiaries"
+                )
+                .authenticated()
+
+                // Authenticated banking users can add beneficiaries
+                .requestMatchers(
+                    HttpMethod.POST,
+                    "/api/beneficiaries"
+                )
+                .hasAnyRole(
+                    "USER",
+                    "MAKER",
+                    "CHECKER",
+                    "ADMIN"
+                )
+
+                // ADMIN and CHECKER can delete beneficiaries
                 .requestMatchers(
                     HttpMethod.DELETE,
                     "/api/beneficiaries/**"
                 )
                 .hasAnyRole("ADMIN", "CHECKER")
 
-                // Everything else requires authentication
-                .anyRequest().authenticated()
+
+                // ==========================================
+                // MONEY TRANSFERS
+                // ==========================================
+
+                .requestMatchers(
+                    HttpMethod.POST,
+                    "/api/transfers"
+                )
+                .hasAnyRole("MAKER", "USER", "ADMIN")
+
+
+                // ==========================================
+                // AUDIT LOGS
+                // ==========================================
+
+                .requestMatchers(
+                    "/api/audit-logs/**"
+                )
+                .hasRole("ADMIN")
+
+
+                // ==========================================
+                // EVERYTHING ELSE
+                // ==========================================
+
+                .anyRequest()
+                .authenticated()
             )
 
             .oauth2ResourceServer(oauth2 ->
@@ -70,6 +179,7 @@ public class SecurityConfig {
 
         return http.build();
     }
+
 
     @Bean
     public Converter<Jwt, ? extends AbstractAuthenticationToken>
@@ -85,27 +195,34 @@ public class SecurityConfig {
         return converter;
     }
 
+
     private Collection<GrantedAuthority> extractRoles(Jwt jwt) {
 
-    Map<String, Object> realmAccess =
-            jwt.getClaim("realm_access");
+        Map<String, Object> realmAccess =
+                jwt.getClaim("realm_access");
 
-    if (realmAccess == null) {
-        return Collections.emptyList();
+        if (realmAccess == null) {
+            return Collections.emptyList();
+        }
+
+        Object rolesObject =
+                realmAccess.get("roles");
+
+        if (!(rolesObject instanceof Collection<?> roles)) {
+            return Collections.emptyList();
+        }
+
+        List<GrantedAuthority> authorities =
+                roles.stream()
+                    .map(Object::toString)
+                    .map(role ->
+                        (GrantedAuthority)
+                        new SimpleGrantedAuthority(
+                            "ROLE_" + role
+                        )
+                    )
+                    .toList();
+
+        return authorities;
     }
-
-    Object rolesObject = realmAccess.get("roles");
-
-    if (!(rolesObject instanceof Collection<?> roles)) {
-        return Collections.emptyList();
-    }
-
-    List<GrantedAuthority> authorities = roles.stream()
-            .map(Object::toString)
-            .map(role -> (GrantedAuthority)
-                    new SimpleGrantedAuthority("ROLE_" + role))
-            .toList();
-
-    return authorities;
-}
 }

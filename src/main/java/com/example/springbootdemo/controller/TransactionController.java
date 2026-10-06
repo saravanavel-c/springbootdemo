@@ -11,39 +11,33 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/accounts/{accountId}/transactions")
 public class TransactionController {
 
     private final TransactionService transactionService;
 
-    public TransactionController(
-            TransactionService transactionService) {
-
+    public TransactionController(TransactionService transactionService) {
         this.transactionService = transactionService;
     }
 
-    @PostMapping
+    @PostMapping("/api/accounts/{accountId}/transactions")
     public ResponseEntity<TransactionResponse> createTransaction(
             @PathVariable Long accountId,
             @Valid @RequestBody TransactionRequest request) {
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(
-                        transactionService.createTransaction(
-                                accountId,
-                                request
-                        )
-                );
+                .body(transactionService.createTransaction(accountId, request));
     }
 
-    @GetMapping
-    public ResponseEntity<List<TransactionResponse>>
-    getTransactions(@PathVariable Long accountId) {
+    @GetMapping("/api/accounts/{accountId}/transactions")
+    public ResponseEntity<List<TransactionResponse>> getTransactions(
+            @PathVariable Long accountId) {
 
-        return ResponseEntity.ok(
-                transactionService
-                        .getTransactionsByAccount(accountId)
-        );
+        return ResponseEntity.ok(transactionService.getTransactionsByAccount(accountId));
+    }
+
+    @GetMapping("/api/transactions")
+    public ResponseEntity<List<TransactionResponse>> getAllTransactions() {
+        return ResponseEntity.ok(transactionService.getAllTransactions());
     }
 }

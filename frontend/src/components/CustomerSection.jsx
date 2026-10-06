@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createCustomer, getCustomers, deleteCustomer } from "../api";
-
-function CustomerSection() {
+function CustomerSection({ role }) {
+  const isAdmin = role === "ADMIN";
   const [customers, setCustomers] = useState([]);
 
   const [name, setName] = useState("");
@@ -58,64 +58,65 @@ function CustomerSection() {
   };
   const handleDelete = async (id) => {
 
-  const confirmed = window.confirm(
-    "Are you sure you want to delete this customer?"
-  );
-
-  if (!confirmed) {
-    return;
-  }
-
-  try {
-
-    setError("");
-    setMessage("");
-
-    await deleteCustomer(id);
-
-    setMessage(
-      "Customer deleted successfully."
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this customer?"
     );
 
-    await loadCustomers();
+    if (!confirmed) {
+      return;
+    }
 
-  } catch (error) {
+    try {
 
-    setError(error.message);
+      setError("");
+      setMessage("");
 
-  }
-};
+      await deleteCustomer(id);
+
+      setMessage(
+        "Customer deleted successfully."
+      );
+
+      await loadCustomers();
+
+    } catch (error) {
+
+      setError(error.message);
+
+    }
+  };
 
   return (
     <section className="section">
       <h2>Customers</h2>
+      {isAdmin && (
+        <form onSubmit={handleSubmit} className="form">
+          <input
+            type="text"
+            placeholder="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
 
-      <form onSubmit={handleSubmit} className="form">
-        <input
-          type="text"
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+          <input
+            type="text"
+            placeholder="Phone"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
 
-        <input
-          type="text"
-          placeholder="Phone"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-        />
-
-        <button type="submit">
-          Create Customer
-        </button>
-      </form>
+          <button type="submit">
+            Create Customer
+          </button>
+        </form>
+      )}
 
       {message && (
         <p className="success">{message}</p>
@@ -144,12 +145,14 @@ function CustomerSection() {
               <p>
                 <strong>Phone:</strong> {customer.phone}
               </p>
-              <button
-                className="delete-button"
-                onClick={() => handleDelete(customer.id)}
+              {isAdmin && (
+                <button
+                  className="delete-button"
+                  onClick={() => handleDelete(customer.id)}
                 >
-                Delete
-              </button>
+                  Delete
+                </button>
+              )}
             </div>
           ))
         )}

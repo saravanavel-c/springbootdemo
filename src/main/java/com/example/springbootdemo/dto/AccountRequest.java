@@ -21,6 +21,8 @@ public class AccountRequest {
     @NotNull(message = "Customer ID is required")
     private Long customerId;
 
+    private String status = "ACTIVE";
+
     public AccountRequest() {
     }
 
@@ -30,6 +32,14 @@ public class AccountRequest {
         this.accountType = accountType;
         this.balance = balance;
         this.customerId = customerId;
+    }
+
+    public AccountRequest(String accountNumber, String accountType, BigDecimal balance, Long customerId, String status) {
+        this.accountNumber = accountNumber;
+        this.accountType = accountType;
+        this.balance = balance;
+        this.customerId = customerId;
+        this.status = status;
     }
 
     public String getAccountNumber() {
@@ -62,5 +72,13 @@ public class AccountRequest {
 
     public void setCustomerId(Long customerId) {
         this.customerId = customerId;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

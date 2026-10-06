@@ -5,8 +5,10 @@ import {
   deleteBeneficiary,
   getBeneficiaries,
 } from "../api";
-
-function BeneficiarySection() {
+function BeneficiarySection({ role }) {
+  const canDelete =
+    role === "ADMIN" ||
+    role === "CHECKER";
   const [beneficiaries, setBeneficiaries] =
     useState([]);
 
@@ -167,16 +169,16 @@ function BeneficiarySection() {
                   {beneficiary.bankName}
                 </p>
 
-                <button
-                  className="delete-button"
-                  onClick={() =>
-                    handleDelete(
-                      beneficiary.id
-                    )
-                  }
-                >
-                  Delete
-                </button>
+                {canDelete && (
+                  <button
+                    className="delete-button"
+                    onClick={() =>
+                      handleDelete(beneficiary.id)
+                    }
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             )
           )

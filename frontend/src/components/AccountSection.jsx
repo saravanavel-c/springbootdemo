@@ -7,36 +7,53 @@ import {
   deleteAccount,
 } from "../api";
 
-function AccountSection({ onSelectAccount }) {
+function AccountSection({
+  role,
+  selectedAccountId,
+  onSelectAccount,
+}) {
 
   const [accounts, setAccounts] = useState([]);
 
   const [selectedAccount, setSelectedAccount] =
     useState(null);
 
-  const [accountId, setAccountId] = useState("");
+  const [accountId, setAccountId] =
+    useState("");
 
-  const [accountNumber, setAccountNumber] = useState("");
-  const [accountType, setAccountType] = useState("");
-  const [balance, setBalance] = useState("");
-  const [customerId, setCustomerId] = useState("");
+  const [accountNumber, setAccountNumber] =
+    useState("");
 
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [accountType, setAccountType] =
+    useState("");
+
+  const [balance, setBalance] =
+    useState("");
+
+  const [customerId, setCustomerId] =
+    useState("");
+
+  const [error, setError] =
+    useState("");
+
+  const [message, setMessage] =
+    useState("");
+
+  const isAdmin = role === "ADMIN";
+
 
   // =========================
   // LOAD ACCOUNTS
   // =========================
 
   const loadAccounts = async () => {
-
     try {
 
       setError("");
 
       const data = await getAccounts();
 
-      setAccounts(data);
+      setAccounts(data || []);
 
     } catch (error) {
 
@@ -51,13 +68,67 @@ function AccountSection({ onSelectAccount }) {
 
 
   // =========================
-  // VIEW ACCOUNT
+  // SYNC SELECTED ACCOUNT
+  // =========================
+
+  useEffect(() => {
+
+    if (!selectedAccountId || accounts.length === 0) {
+      return;
+    }
+
+    const account = accounts.find(
+      (item) => item.id === Number(selectedAccountId)
+    );
+
+    if (account) {
+
+      setSelectedAccount(account);
+
+      setAccountId(String(account.id));
+
+    }
+
+  }, [selectedAccountId, accounts]);
+
+  // =========================
+  // SELECT ACCOUNT
+  // =========================
+
+  const handleSelectAccount = (id) => {
+
+    if (!id) {
+      setSelectedAccount(null);
+      onSelectAccount(null);
+      return;
+    }
+
+    const account =
+      accounts.find(
+        (item) => item.id === Number(id)
+      );
+
+    if (account) {
+
+      setSelectedAccount(account);
+
+      setAccountId(String(account.id));
+
+      onSelectAccount(account.id);
+    }
+  };
+
+
+  // =========================
+  // VIEW ACCOUNT BY ID
   // =========================
 
   const handleViewAccount = async () => {
 
     if (!accountId) {
+
       setError("Enter an account ID.");
+
       return;
     }
 
@@ -65,10 +136,11 @@ function AccountSection({ onSelectAccount }) {
 
       setError("");
 
-      const data = await getAccountById(accountId);
+      const data =
+        await getAccountById(accountId);
 
       setSelectedAccount(data);
-
+      setAccountId(String(data.id));
       onSelectAccount(data.id);
 
     } catch (error) {
@@ -98,7 +170,11 @@ function AccountSection({ onSelectAccount }) {
       !balance ||
       !customerId
     ) {
-      setError("All account fields are required.");
+
+      setError(
+        "All account fields are required."
+      );
+
       return;
     }
 
@@ -111,15 +187,15 @@ function AccountSection({ onSelectAccount }) {
         customerId: Number(customerId),
       });
 
-      setMessage("Account created successfully.");
+      setMessage(
+        "Account created successfully."
+      );
 
-      // Clear form
       setAccountNumber("");
       setAccountType("");
       setBalance("");
       setCustomerId("");
 
-      // Refresh account list
       await loadAccounts();
 
     } catch (error) {
@@ -136,9 +212,10 @@ function AccountSection({ onSelectAccount }) {
 
   const handleDeleteAccount = async (id) => {
 
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this account?"
-    );
+    const confirmed =
+      window.confirm(
+        "Are you sure you want to delete this account?"
+      );
 
     if (!confirmed) {
       return;
@@ -151,13 +228,17 @@ function AccountSection({ onSelectAccount }) {
 
       await deleteAccount(id);
 
-      setMessage("Account deleted successfully.");
+      setMessage(
+        "Account deleted successfully."
+      );
 
-      // If deleted account was selected
-      if (selectedAccount?.id === id) {
+      if (
+        selectedAccount?.id === id
+      ) {
 
         setSelectedAccount(null);
         onSelectAccount(null);
+        setAccountId("");
 
       }
 
@@ -177,64 +258,63 @@ function AccountSection({ onSelectAccount }) {
 
       <h2>Accounts</h2>
 
-
       {/* =========================
-          ADD ACCOUNT FORM
+          ADMIN ADD ACCOUNT
       ========================= */}
 
-      <form
-        onSubmit={handleAddAccount}
-        className="form"
-      >
+      {isAdmin && (
 
-        <h3>Add Account</h3>
+        <form
+          onSubmit={handleAddAccount}
+          className="form"
+        >
 
-        <input
-          type="text"
-          placeholder="Account Number"
-          value={accountNumber}
-          onChange={(e) =>
-            setAccountNumber(e.target.value)
-          }
-        />
+          <h3>Add Account</h3>
 
-        <input
-          type="text"
-          placeholder="Account Type (SAVINGS / CURRENT)"
-          value={accountType}
-          onChange={(e) =>
-            setAccountType(e.target.value)
-          }
-        />
+          <input
+            type="text"
+            placeholder="Account Number"
+            value={accountNumber}
+            onChange={(e) =>
+              setAccountNumber(e.target.value)
+            }
+          />
 
-        <input
-          type="number"
-          placeholder="Initial Balance"
-          value={balance}
-          onChange={(e) =>
-            setBalance(e.target.value)
-          }
-        />
+          <input
+            type="text"
+            placeholder="Account Type (SAVINGS / CURRENT)"
+            value={accountType}
+            onChange={(e) =>
+              setAccountType(e.target.value)
+            }
+          />
 
-        <input
-          type="number"
-          placeholder="Customer ID"
-          value={customerId}
-          onChange={(e) =>
-            setCustomerId(e.target.value)
-          }
-        />
+          <input
+            type="number"
+            placeholder="Initial Balance"
+            value={balance}
+            onChange={(e) =>
+              setBalance(e.target.value)
+            }
+          />
 
-        <button type="submit">
-          Add Account
-        </button>
+          <input
+            type="number"
+            placeholder="Customer ID"
+            value={customerId}
+            onChange={(e) =>
+              setCustomerId(e.target.value)
+            }
+          />
 
-      </form>
+          <button type="submit">
+            Add Account
+          </button>
 
+        </form>
 
-      {/* =========================
-          MESSAGES
-      ========================= */}
+      )}
+
 
       {message && (
         <p className="success">
@@ -250,7 +330,43 @@ function AccountSection({ onSelectAccount }) {
 
 
       {/* =========================
-          VIEW ACCOUNT
+          ACCOUNT SELECTOR
+      ========================= */}
+
+      <div className="account-selector">
+
+        <h3>Select Account</h3>
+
+        <select
+          value={accountId}
+          onChange={(e) =>
+            handleSelectAccount(e.target.value)
+          }
+        >
+
+          <option value="">
+            Select an account
+          </option>
+
+          {accounts.map((account) => (
+
+            <option
+              key={account.id}
+              value={account.id}
+            >
+              Account #{account.id} -
+              {` ${account.accountType} - ₹${account.balance}`}
+            </option>
+
+          ))}
+
+        </select>
+
+      </div>
+
+
+      {/* =========================
+          VIEW ACCOUNT BY ID
       ========================= */}
 
       <div className="account-search">
@@ -264,58 +380,107 @@ function AccountSection({ onSelectAccount }) {
           }
         />
 
-        <button onClick={handleViewAccount}>
+        <button
+          onClick={handleViewAccount}
+        >
           View Account
         </button>
 
       </div>
 
 
+      {/* =========================
+          SELECTED ACCOUNT
+      ========================= */}
       {selectedAccount && (
+        <div className="account-detail-panel">
 
-        <div className="card">
+          <div className="account-detail-header">
 
-          <h3>Account Details</h3>
+            <div>
+              <span className="account-detail-label">
+                {selectedAccount.accountType}
+              </span>
 
-          <p>
-            <strong>ID:</strong>{" "}
-            {selectedAccount.id}
-          </p>
+              <h3>
+                ••••{" "}
+                {String(
+                  selectedAccount.accountNumber
+                ).slice(-4)}
+              </h3>
+            </div>
 
-          <p>
-            <strong>Account Number:</strong>{" "}
-            {selectedAccount.accountNumber}
-          </p>
+            <div className="account-detail-icon">
+              💳
+            </div>
 
-          <p>
-            <strong>Type:</strong>{" "}
-            {selectedAccount.accountType}
-          </p>
+          </div>
 
-          <p>
-            <strong>Balance:</strong>{" "}
-            ₹{selectedAccount.balance}
-          </p>
 
-          <p>
-            <strong>Customer ID:</strong>{" "}
-            {selectedAccount.customerId}
-          </p>
+          <div className="account-balance-section">
+
+            <span>Available Balance</span>
+
+            <strong>
+              ₹
+              {Number(
+                selectedAccount.balance || 0
+              ).toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+              })}
+            </strong>
+
+          </div>
+
+
+          <div className="account-detail-grid">
+
+            <div>
+              <span>Account ID</span>
+              <strong>
+                {selectedAccount.id}
+              </strong>
+            </div>
+
+            <div>
+              <span>Customer ID</span>
+              <strong>
+                {selectedAccount.customerId}
+              </strong>
+            </div>
+
+            <div>
+              <span>Account Type</span>
+              <strong>
+                {selectedAccount.accountType}
+              </strong>
+            </div>
+
+            <div>
+              <span>Account Number</span>
+              <strong>
+                {selectedAccount.accountNumber}
+              </strong>
+            </div>
+
+          </div>
 
         </div>
-
       )}
 
-
       {/* =========================
-          ACCOUNT LIST
+          ALL ACCOUNTS
       ========================= */}
 
-      <h3>All Accounts</h3>
+      <h3>
+        All Accounts
+      </h3>
 
       {accounts.length === 0 ? (
 
-        <p>No accounts found.</p>
+        <p>
+          No accounts found.
+        </p>
 
       ) : (
 
@@ -355,25 +520,31 @@ function AccountSection({ onSelectAccount }) {
 
               <button
                 onClick={() => {
-
                   setSelectedAccount(account);
-
+                  setAccountId(
+                    String(account.id)
+                  );
                   onSelectAccount(account.id);
-
                 }}
               >
-                View Details
+                Select Account
               </button>
 
 
-              <button
-                className="delete-button"
-                onClick={() =>
-                  handleDeleteAccount(account.id)
-                }
-              >
-                Delete
-              </button>
+              {isAdmin && (
+
+                <button
+                  className="delete-button"
+                  onClick={() =>
+                    handleDeleteAccount(
+                      account.id
+                    )
+                  }
+                >
+                  Delete Account
+                </button>
+
+              )}
 
             </div>
 
