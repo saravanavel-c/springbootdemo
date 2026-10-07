@@ -19,6 +19,11 @@ public class TransactionController {
         this.transactionService = transactionService;
     }
 
+
+    // =========================================================
+    // CREATE NORMAL TRANSACTION
+    // =========================================================
+
     @PostMapping("/api/accounts/{accountId}/transactions")
     public ResponseEntity<TransactionResponse> createTransaction(
             @PathVariable Long accountId,
@@ -26,18 +31,47 @@ public class TransactionController {
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(transactionService.createTransaction(accountId, request));
+                .body(
+                        transactionService.createTransaction(
+                                accountId,
+                                request
+                        )
+                );
     }
+
+
+    // =========================================================
+    // GET TRANSACTIONS FOR ACCOUNT
+    // =========================================================
 
     @GetMapping("/api/accounts/{accountId}/transactions")
     public ResponseEntity<List<TransactionResponse>> getTransactions(
             @PathVariable Long accountId) {
 
-        return ResponseEntity.ok(transactionService.getTransactionsByAccount(accountId));
+        return ResponseEntity.ok(
+                transactionService.getTransactionsByAccount(
+                        accountId
+                )
+        );
     }
+
+
+    // =========================================================
+    // GET ALL TRANSACTIONS
+    // =========================================================
 
     @GetMapping("/api/transactions")
     public ResponseEntity<List<TransactionResponse>> getAllTransactions() {
-        return ResponseEntity.ok(transactionService.getAllTransactions());
+
+        return ResponseEntity.ok(
+                transactionService.getAllTransactions()
+        );
     }
+
+
+    // =========================================================
+    // TRANSFER MONEY
+    // =========================================================
+
+    
 }

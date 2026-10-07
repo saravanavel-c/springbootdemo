@@ -108,3 +108,9 @@ export const deleteBeneficiary = (id) =>
   request(`/api/beneficiaries/${id}`, {
     method: "DELETE",
   });
+
+export const createTransfer = (transfer) =>
+  request("/api/transfers", {
+    method: "POST",
+    body: JSON.stringify(transfer),
+  });

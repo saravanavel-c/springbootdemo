@@ -5,174 +5,253 @@ import {
   getAccountById,
   getTransactions,
   createTransaction,
+  getBeneficiaries,
+  createTransfer,
 } from "../api";
-
 
 function TransactionSection({
   role,
   accountId,
   onSelectAccount,
 }) {
-
   const [accounts, setAccounts] = useState([]);
-  const [selectedAccount, setSelectedAccount] =
-    useState(null);
-
-  const [transactions, setTransactions] =
-    useState([]);
+  const [beneficiaries, setBeneficiaries] = useState([]);
+  const [selectedAccount, setSelectedAccount] = useState(null);
+  const [transactions, setTransactions] = useState([]);
 
   const [type, setType] = useState("");
   const [amount, setAmount] = useState("");
 
+  // Transfer fields
+  const [transferMode, setTransferMode] = useState("beneficiary");
+  const [beneficiaryId, setBeneficiaryId] = useState("");
+  const [toAccountNumber, setToAccountNumber] = useState("");
+  const [description, setDescription] = useState("");
+
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-
   const [loading, setLoading] = useState(false);
 
-
   const isMaker = role === "MAKER";
-
+  const canTransfer =
+    role === "ADMIN" ||
+    role === "MAKER" ||
+    role === "USER";
 
   // =========================
   // LOAD ACCOUNTS
   // =========================
 
   const loadAccounts = async () => {
-
     try {
-
       const data = await getAccounts();
-
       setAccounts(data || []);
-
     } catch (error) {
-
       setError(error.message);
-
     }
   };
 
+  // =========================
+  // LOAD BENEFICIARIES
+  // =========================
+
+  const loadBeneficiaries = async () => {
+    try {
+      const data = await getBeneficiaries();
+      setBeneficiaries(data || []);
+    } catch (error) {
+      console.error("Failed to load beneficiaries:", error);
+    }
+  };
 
   useEffect(() => {
-
     loadAccounts();
-
+    loadBeneficiaries();
   }, []);
-
 
   // =========================
   // LOAD SELECTED ACCOUNT
   // =========================
 
   useEffect(() => {
-
     if (!accountId) {
-
       setSelectedAccount(null);
       setTransactions([]);
-
       return;
     }
 
     loadSelectedAccount(accountId);
-
   }, [accountId]);
 
-
   const loadSelectedAccount = async (id) => {
-
     try {
-
       setLoading(true);
       setError("");
 
-      const account =
-        await getAccountById(id);
-
+      const account = await getAccountById(id);
       setSelectedAccount(account);
 
-      const data =
-        await getTransactions(id);
-
+      const data = await getTransactions(id);
       setTransactions(data || []);
-
     } catch (error) {
-
       setError(error.message);
-
       setSelectedAccount(null);
       setTransactions([]);
-
     } finally {
-
       setLoading(false);
-
     }
   };
-
 
   // =========================
   // SELECT ACCOUNT
   // =========================
 
   const handleSelectAccount = (id) => {
-
     if (!id) {
-
       setSelectedAccount(null);
       setTransactions([]);
-
       onSelectAccount(null);
-
       return;
     }
 
     onSelectAccount(Number(id));
-
   };
 
+  // =========================
+  // TYPE CHANGE
+  // =========================
+
+  const handleTypeChange = (value) => {
+    setType(value);
+
+    // Clear transfer-specific fields
+    if (value !== "TRANSFER") {
+      setBeneficiaryId("");
+      setToAccountNumber("");
+      setDescription("");
+    }
+
+    setError("");
+    setMessage("");
+  };
 
   // =========================
-  // CREATE TRANSACTION
+  // CREATE TRANSACTION / TRANSFER
   // =========================
 
   const handleSubmit = async (event) => {
-
     event.preventDefault();
 
     setError("");
     setMessage("");
 
     if (!accountId) {
-
-      setError(
-        "Please select an account."
-      );
-
+      setError("Please select an account.");
       return;
     }
 
-    if (!type || !amount) {
+    if (!type) {
+      setError("Please select a transaction type.");
+      return;
+    }
 
-      setError(
-        "Transaction type and amount are required."
-      );
-
+    if (!amount) {
+      setError("Amount is required.");
       return;
     }
 
     if (Number(amount) <= 0) {
+      setError("Amount must be greater than 0.");
+      return;
+    }
 
-      setError(
-        "Transaction amount must be greater than 0."
-      );
+    // =========================
+    // TRANSFER
+    // =========================
+
+    if (type === "TRANSFER") {
+      if (!canTransfer) {
+        setError("Your role does not have permission to make transfers.");
+        return;
+      }
+
+      if (transferMode === "beneficiary" && !beneficiaryId) {
+        setError("Please select a beneficiary.");
+        return;
+      }
+
+      if (transferMode === "account" && !toAccountNumber.trim()) {
+        setError("Please enter the destination account number.");
+        return;
+      }
+
+      if (
+        transferMode === "account" &&
+        String(selectedAccount?.accountNumber) ===
+        String(toAccountNumber).trim()
+      ) {
+        setError("You cannot transfer money to the same account.");
+        return;
+      }
+
+      try {
+        setLoading(true);
+
+        const transferData = {
+          fromAccountId: Number(accountId),
+          beneficiaryId:
+            transferMode === "beneficiary"
+              ? Number(beneficiaryId)
+              : null,
+          toAccountNumber:
+            transferMode === "account"
+              ? toAccountNumber.trim()
+              : null,
+          amount: Number(amount),
+          description: description.trim(),
+        };
+
+        const response = await createTransfer(transferData);
+
+        setMessage(
+          response?.message ||
+          "Transfer completed successfully."
+        );
+
+        // Clear form
+        setType("");
+        setAmount("");
+        setBeneficiaryId("");
+        setToAccountNumber("");
+        setDescription("");
+        setTransferMode("beneficiary");
+
+        // Refresh balance and transaction history
+        await loadSelectedAccount(accountId);
+
+        // Refresh accounts too
+        await loadAccounts();
+      } catch (error) {
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
 
       return;
     }
 
+    // =========================
+    // NORMAL CREDIT / DEBIT
+    // =========================
+
+    if (!isMaker) {
+      setError(
+        "Only MAKER users can create credit or debit transactions."
+      );
+      return;
+    }
 
     try {
-
       setLoading(true);
 
       await createTransaction(accountId, {
@@ -180,104 +259,78 @@ function TransactionSection({
         amount: Number(amount),
       });
 
-
-      setMessage(
-        "Transaction created successfully."
-      );
+      setMessage("Transaction created successfully.");
 
       setType("");
       setAmount("");
 
-
-      // Refresh account balance
-      // and transaction history
+      // Refresh balance and transaction history
       await loadSelectedAccount(accountId);
 
-
+      // Refresh accounts
+      await loadAccounts();
     } catch (error) {
-
       setError(error.message);
-
     } finally {
-
       setLoading(false);
-
     }
   };
-
 
   // =========================
   // FORMAT CURRENCY
   // =========================
 
   const formatCurrency = (value) => {
-
-    return new Intl.NumberFormat(
-      "en-IN",
-      {
-        style: "currency",
-        currency: "INR",
-        minimumFractionDigits: 2,
-      }
-    ).format(Number(value || 0));
-
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      minimumFractionDigits: 2,
+    }).format(Number(value || 0));
   };
-
 
   // =========================
   // FORMAT DATE
   // =========================
 
   const formatDate = (date) => {
-
     if (!date) {
       return "";
     }
 
-    const parsedDate =
-      new Date(date);
+    const parsedDate = new Date(date);
 
-    if (
-      Number.isNaN(
-        parsedDate.getTime()
-      )
-    ) {
+    if (Number.isNaN(parsedDate.getTime())) {
       return date;
     }
 
-    return parsedDate.toLocaleDateString(
-      "en-IN",
-      {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }
-    );
-
+    return parsedDate.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
   };
-
 
   // =========================
   // TRANSACTION ICON
   // =========================
 
-  const isCredit = (type) =>
-    type === "CREDIT";
+  const isCredit = (transactionType) => {
+    return transactionType === "CREDIT";
+  };
 
+  // =========================
+  // RENDER
+  // =========================
 
   return (
-
     <section className="section transaction-page">
-
 
       {/* =========================
           HEADER
       ========================= */}
 
       <div className="transaction-page-header">
-
         <div>
-
           <p className="eyebrow">
             ACCOUNT ACTIVITY
           </p>
@@ -290,11 +343,8 @@ function TransactionSection({
             View and manage your account
             transactions.
           </p>
-
         </div>
-
       </div>
-
 
       {/* =========================
           ACCOUNT SELECTOR
@@ -309,57 +359,54 @@ function TransactionSection({
         <select
           value={accountId || ""}
           onChange={(e) =>
-            handleSelectAccount(
-              e.target.value
-            )
+            handleSelectAccount(e.target.value)
           }
         >
-
           <option value="">
             Select an account
           </option>
 
           {accounts.map((account) => (
-
             <option
               key={account.id}
               value={account.id}
             >
-
               {account.accountType}
               {" •••• "}
               {String(
                 account.accountNumber
               ).slice(-4)}
-
             </option>
-
           ))}
-
         </select>
 
       </div>
-
 
       {/* =========================
           ERROR
       ========================= */}
 
       {error && (
-
         <div className="transaction-error">
           {error}
         </div>
-
       )}
 
+      {/* =========================
+          SUCCESS
+      ========================= */}
+
+      {message && (
+        <p className="success">
+          {message}
+        </p>
+      )}
 
       {/* =========================
           NO ACCOUNT
       ========================= */}
 
       {!accountId && (
-
         <div className="transaction-empty">
 
           <div className="transaction-empty-icon">
@@ -376,12 +423,13 @@ function TransactionSection({
           </p>
 
         </div>
-
       )}
 
+      {/* =========================
+          ACCOUNT CONTENT
+      ========================= */}
 
       {accountId && (
-
         <>
 
           {/* =========================
@@ -389,11 +437,9 @@ function TransactionSection({
           ========================= */}
 
           {selectedAccount && (
-
             <div className="transaction-account-summary">
 
               <div>
-
                 <span>
                   {selectedAccount.accountType}
                 </span>
@@ -404,9 +450,7 @@ function TransactionSection({
                     selectedAccount.accountNumber
                   ).slice(-4)}
                 </h3>
-
               </div>
-
 
               <div className="transaction-balance">
 
@@ -423,9 +467,7 @@ function TransactionSection({
               </div>
 
             </div>
-
           )}
-
 
           {/* =========================
               TRANSACTION HISTORY
@@ -453,35 +495,29 @@ function TransactionSection({
 
             </div>
 
-
             {loading && (
-
               <div className="transaction-loading">
                 Loading...
               </div>
-
             )}
-
 
             {!loading &&
               transactions.length === 0 && (
-
                 <div className="transaction-empty-small">
 
-                  <span>↕</span>
+                  <span>
+                    ↕
+                  </span>
 
                   <p>
                     No transactions found
                   </p>
 
                 </div>
-
               )}
-
 
             {!loading &&
               transactions.length > 0 && (
-
                 <div className="transaction-history-list">
 
                   {transactions.map(
@@ -493,7 +529,6 @@ function TransactionSection({
                         );
 
                       return (
-
                         <div
                           className="transaction-row"
                           key={transaction.id}
@@ -506,13 +541,10 @@ function TransactionSection({
                                 : "transaction-row-icon debit"
                             }
                           >
-
                             {credit
                               ? "↓"
                               : "↑"}
-
                           </div>
-
 
                           <div className="transaction-row-details">
 
@@ -533,7 +565,6 @@ function TransactionSection({
 
                           </div>
 
-
                           <strong
                             className={
                               credit
@@ -553,25 +584,20 @@ function TransactionSection({
                           </strong>
 
                         </div>
-
                       );
-
                     }
                   )}
 
                 </div>
-
               )}
 
           </div>
-
 
           {/* =========================
               CREATE TRANSACTION
           ========================= */}
 
-          {isMaker && (
-
+          {(isMaker || canTransfer) && (
             <div className="create-transaction-panel">
 
               <div className="transaction-panel-header">
@@ -583,19 +609,20 @@ function TransactionSection({
                   </h3>
 
                   <p>
-                    Add a credit or debit
-                    transaction.
+                    Add a transaction or transfer
+                    money to another account.
                   </p>
 
                 </div>
 
               </div>
 
-
               <form
                 onSubmit={handleSubmit}
                 className="transaction-form"
               >
+
+                {/* TRANSACTION TYPE */}
 
                 <div className="transaction-form-field">
 
@@ -606,7 +633,7 @@ function TransactionSection({
                   <select
                     value={type}
                     onChange={(e) =>
-                      setType(
+                      handleTypeChange(
                         e.target.value
                       )
                     }
@@ -616,18 +643,170 @@ function TransactionSection({
                       Select transaction type
                     </option>
 
-                    <option value="CREDIT">
-                      CREDIT
-                    </option>
+                    {isMaker && (
+                      <>
+                        <option value="CREDIT">
+                          CREDIT
+                        </option>
 
-                    <option value="DEBIT">
-                      DEBIT
-                    </option>
+                        <option value="DEBIT">
+                          DEBIT
+                        </option>
+                      </>
+                    )}
+
+                    {canTransfer && (
+                      <option value="TRANSFER">
+                        TRANSFER
+                      </option>
+                    )}
 
                   </select>
 
                 </div>
 
+                {/* =========================
+                    TRANSFER OPTIONS
+                ========================= */}
+
+                {type === "TRANSFER" && (
+                  <>
+
+                    <div className="transaction-form-field">
+
+                      <label>
+                        Transfer To
+                      </label>
+
+                      <select
+                        value={transferMode}
+                        onChange={(e) => {
+                          setTransferMode(
+                            e.target.value
+                          );
+
+                          setBeneficiaryId("");
+                          setToAccountNumber("");
+                        }}
+                      >
+
+                        <option value="beneficiary">
+                          Saved Beneficiary
+                        </option>
+
+                        <option value="account">
+                          Account Number
+                        </option>
+
+                      </select>
+
+                    </div>
+
+                    {/* BENEFICIARY */}
+
+                    {transferMode ===
+                      "beneficiary" && (
+                        <div className="transaction-form-field">
+
+                          <label>
+                            Select Beneficiary
+                          </label>
+
+                          <select
+                            value={beneficiaryId}
+                            onChange={(e) =>
+                              setBeneficiaryId(
+                                e.target.value
+                              )
+                            }
+                          >
+
+                            <option value="">
+                              Select beneficiary
+                            </option>
+
+                            {beneficiaries.map(
+                              (beneficiary) => (
+                                <option
+                                  key={
+                                    beneficiary.id
+                                  }
+                                  value={
+                                    beneficiary.id
+                                  }
+                                >
+                                  {beneficiary.name}
+                                  {" • "}
+                                  {beneficiary.accountNumber}
+                                </option>
+                              )
+                            )}
+
+                          </select>
+
+                          {beneficiaries.length ===
+                            0 && (
+                              <small>
+                                No beneficiaries found.
+                                You can add one from the
+                                Beneficiaries section or
+                                transfer using an account
+                                number.
+                              </small>
+                            )}
+
+                        </div>
+                      )}
+
+                    {/* DIRECT ACCOUNT */}
+
+                    {transferMode ===
+                      "account" && (
+                        <div className="transaction-form-field">
+
+                          <label>
+                            Destination Account Number
+                          </label>
+
+                          <input
+                            type="text"
+                            placeholder="Enter account number"
+                            value={toAccountNumber}
+                            onChange={(e) =>
+                              setToAccountNumber(
+                                e.target.value
+                              )
+                            }
+                          />
+
+                        </div>
+                      )}
+
+                    {/* DESCRIPTION */}
+
+                    <div className="transaction-form-field">
+
+                      <label>
+                        Description
+                      </label>
+
+                      <input
+                        type="text"
+                        placeholder="Enter transfer description"
+                        value={description}
+                        onChange={(e) =>
+                          setDescription(
+                            e.target.value
+                          )
+                        }
+                      />
+
+                    </div>
+
+                  </>
+                )}
+
+                {/* AMOUNT */}
 
                 <div className="transaction-form-field">
 
@@ -637,7 +816,7 @@ function TransactionSection({
 
                   <input
                     type="number"
-                    min="0"
+                    min="0.01"
                     step="0.01"
                     placeholder="Enter amount"
                     value={amount}
@@ -650,40 +829,29 @@ function TransactionSection({
 
                 </div>
 
+                {/* SUBMIT */}
 
                 <button
                   type="submit"
                   disabled={loading}
                 >
-
                   {loading
                     ? "Processing..."
-                    : "Add Transaction"}
-
+                    : type === "TRANSFER"
+                      ? "Transfer Money"
+                      : "Add Transaction"}
                 </button>
 
               </form>
 
-
-              {message && (
-
-                <p className="success">
-                  {message}
-                </p>
-
-              )}
-
             </div>
-
           )}
-
 
           {/* =========================
               READ ONLY MESSAGE
           ========================= */}
 
-          {!isMaker && (
-
+          {!isMaker && !canTransfer && (
             <div className="transaction-readonly">
 
               <span>
@@ -699,23 +867,20 @@ function TransactionSection({
                 <p>
                   Your current role can view
                   transactions but cannot
-                  create them.
+                  create transactions or
+                  transfers.
                 </p>
 
               </div>
 
             </div>
-
           )}
 
         </>
-
       )}
 
     </section>
-
   );
-
 }
 
 export default TransactionSection;
