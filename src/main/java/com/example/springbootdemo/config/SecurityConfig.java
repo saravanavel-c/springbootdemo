@@ -160,6 +160,45 @@ public class SecurityConfig {
                 )
                 .hasRole("ADMIN")
 
+                // ==========================================
+                // CONSENTS
+                // ==========================================
+
+                // All authenticated users can view consents
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/consents"
+                )
+                .authenticated()
+
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/consents/**"
+                )
+                .authenticated()
+
+                // USER and ADMIN can create consent requests
+                .requestMatchers(
+                    HttpMethod.POST,
+                    "/api/consents"
+                )
+                .hasAnyRole("USER", "ADMIN")
+
+                // CHECKER and ADMIN can approve consent
+                .requestMatchers(
+                    HttpMethod.PUT,
+                    "/api/consents/*/approve"
+                )
+                .hasAnyRole("CHECKER", "ADMIN")
+
+                // CHECKER and ADMIN can reject consent
+                .requestMatchers(
+                    HttpMethod.PUT,
+                    "/api/consents/*/reject"
+                )
+                .hasAnyRole("CHECKER", "ADMIN")
+
+
 
                 // ==========================================
                 // EVERYTHING ELSE

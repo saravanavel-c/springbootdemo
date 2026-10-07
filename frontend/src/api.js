@@ -114,3 +114,30 @@ export const createTransfer = (transfer) =>
     method: "POST",
     body: JSON.stringify(transfer),
   });
+
+// ===============================
+// CONSENTS
+// ===============================
+
+export const getConsents = (customerId) =>
+  request(
+    customerId
+      ? `/api/consents?customerId=${customerId}`
+      : "/api/consents"
+  );
+
+export const createConsent = (consent) =>
+  request("/api/consents", {
+    method: "POST",
+    body: JSON.stringify(consent),
+  });
+
+export const approveConsent = (id) =>
+  request(`/api/consents/${id}/approve`, {
+    method: "PUT",
+  });
+
+export const rejectConsent = (id) =>
+  request(`/api/consents/${id}/reject`, {
+    method: "PUT",
+  });

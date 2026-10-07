@@ -4,6 +4,7 @@ import CustomerSection from "./components/CustomerSection";
 import AccountSection from "./components/AccountSection";
 import TransactionSection from "./components/TransactionSection";
 import BeneficiarySection from "./components/BeneficiarySection";
+import ConsentSection from "./components/ConsentSection";
 import Dashboard from "./components/Dashboard";
 import keycloak from "./keycloak";
 
@@ -102,6 +103,9 @@ function App() {
             role={currentRole}
           />
         );
+
+      case "consents":
+        return <ConsentSection role={currentRole} />;
 
       case "dashboard":
       default:
@@ -217,7 +221,16 @@ function App() {
             <span>👥</span>
             Beneficiaries
           </button>
-
+          <button
+            className={
+              activeSection === "consents"
+                ? "nav-item active"
+                : "nav-item"
+            }
+            onClick={() => setActiveSection("consents")}
+          >
+            <span>🔐</span> Consents
+          </button>
         </nav>
 
         <div className="sidebar-bottom">
